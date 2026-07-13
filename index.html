@@ -24,14 +24,11 @@
         .kanban-item:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08); border-color: #cbd5e1; }
         
         .card-bloqueado { pointer-events: none !important; opacity: 0.6; }
-        
-        /* Overlay de Loading dos Filtros */
         #loading-overlay { display: none; position: absolute; inset: 0; background: rgba(241, 245, 249, 0.7); backdrop-filter: blur(2px); z-index: 50; justify-content: center; align-items: center; border-radius: 12px; }
     </style>
 </head>
 <body>
 
-    <!-- BARRA DE FILTROS SUPERIOR -->
     <div id="barra-filtros" class="bg-white border border-slate-200 rounded-xl p-3 mb-4 flex flex-wrap items-center gap-4 shadow-sm" style="display: none;">
         <div class="flex items-center gap-2">
             <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Prioridade:</label>
@@ -86,8 +83,6 @@
         let handshakeInterval, realtimeInterval, conectado = false;
         let globalAccountId, globalConversationId, globalAgentId, globalAgentRole;
         let dadosLocaisOriginais = []; 
-        
-        // Memória para guardar os IDs dos cards que estão expandidos
         let cartoesExpandidos = new Set(); 
 
         window.addEventListener('message', function (event) {
@@ -121,7 +116,6 @@
         }, 500);
 
         function carregarDadosDoServidor() {
-            // Pausa o refresh se o usuário estiver digitando
             if (document.activeElement && (document.activeElement.classList.contains('input-nota') || document.activeElement.classList.contains('input-edit'))) return;
 
             let urlFinal = `${urlDados}?account_id=${globalAccountId}`;
@@ -132,7 +126,7 @@
                 .then(dadosBrutos => {
                     dadosLocaisOriginais = Array.isArray(dadosBrutos) ? dadosBrutos : (dadosBrutos.data || []);
                     atualizarListaDeEtiquetasNoSeletor();
-                    aplicarFiltrosSilencioso(); // Usa a versão que não pisca a tela no auto-refresh
+                    aplicarFiltrosSilencioso();
                 });
         }
 
@@ -156,16 +150,14 @@
             }
         }
 
-        // Filtro com Efeito de Tela de Carregamento (Para quando o usuário muda no select)
         function aplicarFiltros() {
             document.getElementById('loading-overlay').style.display = 'flex';
             setTimeout(() => {
                 aplicarFiltrosSilencioso();
                 document.getElementById('loading-overlay').style.display = 'none';
-            }, 300); // 300ms de trava visual para melhor UX
+            }, 300);
         }
 
-        // Filtro Silencioso (Para quando o sistema atualiza sozinho)
         function aplicarFiltrosSilencioso() {
             const prio = document.getElementById('filtro-prioridade').value;
             const tag = document.getElementById('filtro-etiqueta').value;
@@ -212,7 +204,6 @@
                         });
                     }
 
-                    // Checa a memória para ver se esse card estava aberto antes do F5
                     const estaExpandido = cartoesExpandidos.has(convIdStr);
                     const classOculta = estaExpandido ? '' : 'hidden';
                     const textoBotaoExp = estaExpandido ? 'Recolher Card ↙' : 'Expandir Card ↗';
@@ -220,7 +211,6 @@
                     const cardHTML = `
                         <div class="p-3 select-none relative id-card-${cartao.conversation_id} ${ehConversaAtual ? 'border-l-4 border-indigo-600' : ''}">
                             
-                            <!-- TOPO: Info Usuário e Indicadores Visuais -->
                             <div class="flex items-start gap-3 mb-2">
                                 <div class="w-10 h-10 min-w-[40px] rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold uppercase overflow-hidden shadow-sm mt-1">
                                     ${temFoto ? `<img src="${cartao.avatar_url}" class="w-full h-full object-cover">` : primeiraLetra}
@@ -229,7 +219,6 @@
                                     <h4 class="font-bold text-sm truncate text-slate-800 leading-tight">${cartao.cliente_nome || 'Sem Nome'}</h4>
                                     <p class="text-[11px] font-medium text-slate-400 mt-0.5 mb-1">${cartao.phone_number || 'Sem WhatsApp'}</p>
                                     
-                                    <!-- Prio e Etiquetas na Visão Compacta -->
                                     <div class="flex flex-wrap items-center gap-1">
                                         ${textoPrio ? `<span class="text-[9px] font-extrabold whitespace-nowrap bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200/60">${textoPrio}</span>` : ''}
                                         ${tagsHTML}
@@ -237,14 +226,12 @@
                                 </div>
                             </div>
 
-                            <!-- ÁREA EXPANSÍVEL (Com Memória de Estado) -->
                             <div id="extra-${cartao.conversation_id}" class="${classOculta} mt-2 pt-2 border-t border-slate-100 space-y-2.5 note-area">
                                 
-                                <!-- Módulo de Edição: Prioridade e Etiquetas -->
-                                <div class="grid grid-cols-2 gap-2 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
                                     <div>
-                                        <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Alterar Prio.</label>
-                                        <select id="edit-prio-${cartao.conversation_id}" class="input-edit w-full bg-white border border-slate-200 rounded p-1 text-[11px] font-medium text-slate-700 outline-none focus:border-indigo-500">
+                                        <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Alterar Prioridade</label>
+                                        <select id="edit-prio-${cartao.conversation_id}" class="input-edit w-full bg-white border border-slate-200 rounded p-1.5 text-[11px] font-medium text-slate-700 outline-none focus:border-indigo-500">
                                             <option value="Nenhuma" ${cartao.prioridade === 'Nenhuma' || !cartao.prioridade ? 'selected' : ''}>⚪ Nenhuma</option>
                                             <option value="urgent" ${cartao.prioridade === 'urgent' ? 'selected' : ''}>🔴 Urgente</option>
                                             <option value="high" ${cartao.prioridade === 'high' ? 'selected' : ''}>🟠 Alta</option>
@@ -252,31 +239,30 @@
                                             <option value="low" ${cartao.prioridade === 'low' ? 'selected' : ''}>🔵 Baixa</option>
                                         </select>
                                     </div>
+
+                                    ${tagsHTML ? `
                                     <div>
-                                        <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Etiquetas (vírgula)</label>
-                                        <input type="text" id="edit-tags-${cartao.conversation_id}" class="input-edit w-full bg-white border border-slate-200 rounded p-1 text-[11px] font-medium text-slate-700 outline-none focus:border-indigo-500" placeholder="ex: vip, suporte" value="${(cartao.etiquetas || []).join(', ')}">
+                                        <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Etiquetas Ativas (Visualizar)</span>
+                                        <div class="flex flex-wrap gap-1">${tagsHTML}</div>
                                     </div>
+                                    ` : ''}
                                 </div>
 
-                                <!-- Mensagem Completa -->
                                 <div class="bg-slate-50 p-2.5 rounded text-[11px] text-slate-600 border border-slate-100/50">
                                     <span class="font-bold text-slate-400 block text-[9px] uppercase tracking-wider mb-0.5">Última Mensagem</span>
                                     <p class="whitespace-pre-wrap break-words italic text-slate-700">${cartao.ultima_mensagem || 'Nenhuma...'}</p>
                                 </div>
 
-                                <!-- Bloco de Notas -->
                                 <div class="bg-slate-50/50 border border-dashed border-slate-200 focus-within:border-indigo-300 focus-within:bg-white p-2 rounded flex flex-col">
                                     <span class="font-bold text-slate-400 block text-[9px] uppercase tracking-wider mb-0.5">Nota Kanban 🗒_</span>
                                     <textarea id="nota-${cartao.conversation_id}" data-convid="${cartao.conversation_id}" class="input-nota w-full bg-transparent text-[11px] text-slate-700 border-none outline-none resize-none placeholder-slate-300 focus:ring-0 p-0" rows="3" placeholder="Digite as notas aqui...">${notaAtual}</textarea>
                                 </div>
 
-                                <!-- Botão Salvar Unificado -->
                                 <button id="btn-nota-${cartao.conversation_id}" data-convid="${cartao.conversation_id}" data-account="${globalAccountId}" class="btn-salvar-nota w-full bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold py-2 px-2.5 rounded transition-colors shadow-sm text-center">
                                     💾 SALVAR ALTERAÇÕES
                                 </button>
                             </div>
 
-                            <!-- LINKS DE CONTROLE INFERIORES -->
                             <div class="mt-2.5 pt-2 border-t border-slate-50 flex items-center justify-between text-[11px]">
                                 <span data-convid="${cartao.conversation_id}" class="btn-expandir font-bold text-slate-400 hover:text-slate-600 cursor-pointer">
                                     ${textoBotaoExp}
@@ -332,11 +318,11 @@
                     const divExtra = document.getElementById(`extra-${id}`);
                     if (divExtra.classList.contains('hidden')) {
                         divExtra.classList.remove('hidden');
-                        cartoesExpandidos.add(id); // Guarda na memória
+                        cartoesExpandidos.add(id); 
                         this.innerText = 'Recolher Card ↙';
                     } else {
                         divExtra.classList.add('hidden');
-                        cartoesExpandidos.delete(id); // Tira da memória
+                        cartoesExpandidos.delete(id); 
                         this.innerText = 'Expandir Card ↗';
                     }
                 });
@@ -345,7 +331,6 @@
             document.querySelectorAll('.input-nota, .input-edit').forEach(txt => {
                 txt.addEventListener('focus', (e) => e.stopPropagation());
                 txt.addEventListener('mousedown', (e) => e.stopPropagation());
-                // Não precisa mais esconder o botão de salvar, deixei ele fixo no modo expandido.
             });
 
             document.querySelectorAll('.btn-salvar-nota').forEach(btn => {
@@ -361,10 +346,6 @@
         function processarSalvamentoTotal(convId, accountId, btnElement) {
             const textoNota = document.getElementById(`nota-${convId}`).value;
             const prioridade = document.getElementById(`edit-prio-${convId}`).value;
-            
-            // Pega as etiquetas separadas por vírgula e limpa os espaços
-            const textoTags = document.getElementById(`edit-tags-${convId}`).value;
-            const arrayTags = textoTags.split(',').map(t => t.trim()).filter(t => t !== "");
 
             const cardItemElement = btnElement.closest('.kanban-item');
             if (cardItemElement) cardItemElement.classList.add('card-bloqueado');
@@ -372,7 +353,7 @@
             btnElement.innerText = 'SALVANDO...';
             btnElement.disabled = true;
 
-            // Envia TUDO (Nota, Prioridade e Etiquetas) para o Webhook de Salvar
+            // Enviando apenas prioridade e notas para o Webhook
             fetch(urlSalvarNota, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -380,8 +361,7 @@
                     conversation_id: convId, 
                     account_id: accountId, 
                     notas_contato: textoNota,
-                    prioridade: prioridade,
-                    etiquetas: arrayTags
+                    prioridade: prioridade
                 })
             }).then(response => {
                 btnElement.innerText = 'SALVO ✓';
@@ -395,7 +375,7 @@
                     btnElement.classList.replace('hover:bg-emerald-700', 'hover:bg-indigo-700');
                     if (cardItemElement) cardItemElement.classList.remove('card-bloqueado');
                     
-                    carregarDadosDoServidor(); // Atualiza a tela automaticamente para mostrar as novas cores
+                    carregarDadosDoServidor(); 
                 }, 1500);
             }).catch(() => {
                 btnElement.innerText = 'ERRO!';
