@@ -3,38 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban Orbbotia</title>
-    <!-- Tailwind CSS para um visual moderno e limpo -->
+    <title>Kanban Orbbotia Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Biblioteca jKanban nativa -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jkanban@1.3.1/dist/jkanban.min.css">
     <style>
-        /* Customizações para deixar o jKanban com o visual contínuo da foto */
-        body { background-color: #f8fafc; margin: 0; padding: 12px; font-family: system-ui, sans-serif; }
+        body { background-color: #f1f5f9; margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
         #meuKanban { display: flex; height: calc(100vh - 40px); align-items: stretch; }
-        .kanban-container { display: flex; overflow-x: auto; overflow-y: hidden; width: 100%; gap: 16px; padding-bottom: 8px; }
+        .kanban-container { display: flex; overflow-x: auto; width: 100%; gap: 16px; padding-bottom: 8px; }
         
-        /* Estilização das Colunas (Estilo Pastéis em cascata vertical) */
-        .kanban-board { min-width: 280px; max-width: 280px; border-radius: 12px; display: flex; flex-direction: column; height: 100% !important; background: none; margin-right: 0; }
+        /* Estilização das Colunas (Cores pastéis da foto) */
+        .kanban-board { min-width: 290px; max-width: 290px; border-radius: 12px; display: flex; flex-direction: column; height: 100% !important; background: none; margin-right: 0; }
         .kanban-board[data-id="Triagem"] { background-color: #eff6ff; border: 1px solid #bfdbfe; }
         .kanban-board[data-id="Agendamento"] { background-color: #fffbeb; border: 1px solid #fde68a; }
         .kanban-board[data-id="Faturamento"] { background-color: #fdf2f8; border: 1px solid #fbcfe8; }
         .kanban-board[data-id="Concluído"] { background-color: #f0fdf4; border: 1px solid #bbf7d0; }
         
-        /* Headers das Colunas */
-        .kanban-board-header { font-weight: 700; font-size: 0.95rem; color: #1e293b; padding: 14px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .kanban-board-header { font-weight: 700; font-size: 0.95rem; color: #1e293b; padding: 14px; border-bottom: 1px solid rgba(0,0,0,0.03); }
+        .kanban-drag { flex-grow: 1; overflow-y: auto; padding: 12px; min-height: 100px; }
         
-        /* Área de Arrasto interna */
-        .kanban-drag { flex-grow: 1; overflow-y: auto; padding: 10px; min-height: 100px; }
-        
-        /* Customização Estilo Clean dos Cards Brancos */
-        .kanban-item { background: #ffffff; border-radius: 8px; padding: 0; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; cursor: grab; transition: transform 0.15s; }
-        .kanban-item:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.06); }
+        /* Card Branco Estilizado - Cursor de clique/mãozinha */
+        .kanban-item { background: #ffffff; border-radius: 10px; padding: 0; margin-bottom: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.2s ease; }
+        .kanban-item:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08); border-color: #cbd5e1; }
     </style>
 </head>
 <body>
 
-    <div id='loading' class="text-slate-500 font-medium p-4">Conectando ao Chatwoot...</div>
+    <div id='loading' class="text-slate-500 font-medium p-4">Carregando Funil Orbbotia...</div>
     <div id='meuKanban' class="kanban-container" style='display: none;'></div>
 
     <script src="https://cdn.jsdelivr.net/npm/jkanban@1.3.1/dist/jkanban.min.js"></script>
@@ -52,7 +46,6 @@
         let handshakeInterval;
         let conectado = false;
 
-        // Ouvindo a comunicação do Chatwoot
         window.addEventListener('message', function (event) {
             let eventData = {};
             try {
@@ -65,8 +58,6 @@
 
                 const payload = eventData.data;
                 const conversationId = payload.conversation ? payload.conversation.id : null;
-                
-                // Mapeia IDs e Nível de Permissão (Role) enviado pelo Chatwoot
                 const accountId = (payload.account && payload.account.id) || (payload.conversation && payload.conversation.account_id);
                 const agentId = payload.current_agent ? payload.current_agent.id : null;
                 const agentRole = payload.current_agent ? payload.current_agent.role : 'agent';
@@ -75,15 +66,11 @@
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('meuKanban').style.display = 'flex';
                     
-                    // Inicializa enviando os dados de permissão
                     inicializarPainelKanban(accountId, conversationId, agentId, agentRole);
-                } else {
-                    document.getElementById('loading').innerText = 'Erro: Contexto do Chatwoot incompleto.';
                 }
             }
         });
 
-        // Loop de sinalização exigido pela documentação do Chatwoot
         handshakeInterval = setInterval(function() {
             if (!conectado) {
                 window.parent.postMessage('chatwoot-dashboard-app:fetch-info', '*');
@@ -91,60 +78,64 @@
         }, 500);
 
         function inicializarPainelKanban(accountId, currentConversationId, agentId, agentRole) {
-            // Se o usuário for apenas um agente comum, aplicamos o filtro na chamada da API do n8n
             let urlFinal = `${urlDados}?account_id=${accountId}`;
             if (agentRole === 'agent' && agentId) {
                 urlFinal += `&agent_id=${agentId}`;
             }
 
             fetch(urlFinal)
-                .then(response => {
-                    if (!response.ok) throw new Error('Status retornado: ' + response.status);
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(dadosBrutos => {
                     colunas_do_funil.forEach(c => c.item = []);
+                    let lista = Array.isArray(dadosBrutos) ? dadosBrutos : (dadosBrutos.data || []);
 
-                    let lista = [];
-                    if (Array.isArray(dadosBrutos)) lista = dadosBrutos;
-                    else if (dadosBrutos.data) lista = dadosBrutos.data;
-
-                    if (lista.length > 0) {
-                        lista.forEach(item => {
-                            const cartao = item.json ? item.json : item;
-                            const col = colunas_do_funil.find(c => c.id === cartao.etapa_funil);
+                    lista.forEach(item => {
+                        const cartao = item.json ? item.json : item;
+                        const col = colunas_do_funil.find(c => c.id === cartao.etapa_funil);
+                        
+                        if(col) {
+                            const ehConversaAtual = cartao.conversation_id == currentConversationId;
                             
-                            if(col) {
-                                const ehConversaAtual = cartao.conversation_id == currentConversationId;
-                                
-                                // Layout Minimalista do Card em HTML
-                                const cardHTML = `
-                                    <div class="p-3 select-none text-slate-700 open-chat-trigger ${ehConversaAtual ? 'border-l-4 border-indigo-600 rounded-l-none' : ''}" data-convid="${cartao.conversation_id}">
-                                        <div class="flex items-center gap-2.5 mb-2">
-                                            <!-- Avatar/Foto do Usuário (Caso não tenha, gera inicial estilizada) -->
-                                            <div class="w-8 height-8 min-w-[32px] rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 text-xs font-bold uppercase overflow-hidden">
-                                                ${cartao.avatar_url ? `<img src="${cartao.avatar_url}" class="w-full h-full object-cover">` : (cartao.cliente_nome ? cartao.cliente_nome.charAt(0) : '?')}
-                                            </div>
-                                            <div class="overflow-hidden">
-                                                <h4 class="font-semibold text-sm truncate text-slate-800">${cartao.cliente_nome || 'Sem Nome'}</h4>
-                                                <p class="text-[11px] text-slate-400 truncate">${cartao.phone_number || 'Sem número'}</p>
-                                            </div>
+                            // Validação da foto de perfil (se vier nulo ou vazio, usa a letra)
+                            const temFoto = cartao.avatar_url && cartao.avatar_url.trim() !== "" && cartao.avatar_url !== "null";
+                            const primeiraLetra = cartao.cliente_nome ? cartao.cliente_nome.charAt(0) : '?';
+
+                            // Montagem do Card Avançado
+                            const cardHTML = `
+                                <div class="p-3 select-none open-chat-trigger ${ehConversaAtual ? 'border-l-4 border-indigo-600' : ''}" data-convid="${cartao.conversation_id}">
+                                    
+                                    <div class="flex items-center gap-3 mb-3">
+                                        <div class="w-10 h-10 min-w-[40px] rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold uppercase overflow-hidden shadow-sm">
+                                            ${temFoto ? `<img src="${cartao.avatar_url}" class="w-full h-full object-cover">` : primeiraLetra}
                                         </div>
-                                        
-                                        <!-- Notas do Atendimento / Última Mensagem no rodapé -->
-                                        <div class="mt-2 pt-2 border-t border-slate-100 bg-slate-50 p-2 rounded text-[11px] text-slate-500 italic max-h-[44px] overflow-hidden text-ellipsis">
-                                            ${cartao.ultima_mensagem || 'Sem histórico de notas...'}
+                                        <div class="overflow-hidden">
+                                            <h4 class="font-bold text-sm truncate text-slate-800 leading-tight">${cartao.cliente_nome || 'Sem Nome'}</h4>
+                                            <p class="text-[11px] font-medium text-slate-400 mt-0.5">${cartao.phone_number || 'Sem WhatsApp'}</p>
                                         </div>
                                     </div>
-                                `;
+                                    
+                                    <div class="space-y-1.5 pt-2 border-t border-slate-100">
+                                        <div class="bg-slate-50 p-2 rounded text-[11px] text-slate-600">
+                                            <span class="font-bold text-slate-400 block text-[9px] uppercase tracking-wider mb-0.5">Última Mensagem</span>
+                                            <p class="italic truncate">${cartao.ultima_mensagem || 'Nenhuma mensagem gravada...'}</p>
+                                        </div>
+                                        
+                                        ${cartao.notas_contato ? `
+                                        <div class="bg-amber-50/70 border border-amber-100 p-2 rounded text-[11px] text-amber-800">
+                                            <span class="font-bold text-amber-500 block text-[9px] uppercase tracking-wider mb-0.5">Nota Interna 🗒️</span>
+                                            <p class="line-clamp-2">${cartao.notas_contato}</p>
+                                        </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
 
-                                col.item.push({
-                                    id: String(cartao.conversation_id),
-                                    title: cardHTML
-                                });
-                            }
-                        });
-                    }
+                            col.item.push({
+                                id: String(cartao.conversation_id),
+                                title: cardHTML
+                            });
+                        }
+                    });
 
                     document.getElementById('meuKanban').innerHTML = '';
 
@@ -152,7 +143,7 @@
                         element: '#meuKanban',
                         boards: colunas_do_funil,
                         gutter: '0px',
-                        widthBoard: '280px',
+                        widthBoard: '290px',
                         dropEl: function (el, target) {
                             const conversationId = el.dataset.eid;
                             const novaEtapa = target.parentElement.dataset.id;
@@ -165,13 +156,13 @@
                                     etapa_funil: novaEtapa,
                                     account_id: accountId
                                 })
-                            }).then(r => console.log('Movido com sucesso!'));
+                            });
                         }
                     });
 
-                    // Mecanismo de Abertura Instantânea de Conversa ao Clicar no Card
+                    // FUNÇÃO DE CLIQUE: Dispara o comando para o Chatwoot abrir a conversa selecionada
                     document.querySelectorAll('.open-chat-trigger').forEach(card => {
-                        card.addEventListener('click', function(e) {
+                        card.addEventListener('click', function() {
                             const targetId = this.getAttribute('data-convid');
                             if (targetId) {
                                 window.parent.postMessage({
@@ -184,9 +175,7 @@
 
                 })
                 .catch(err => {
-                    document.getElementById('meuKanban').style.display = 'none';
-                    document.getElementById('loading').style.display = 'block';
-                    document.getElementById('loading').innerHTML = `<span class="text-red-500 font-bold">Erro de sincronização: ${err.message}</span>`;
+                    document.getElementById('loading').innerHTML = `<span class="text-red-500 font-bold">Erro: ${err.message}</span>`;
                 });
         }
     </script>
