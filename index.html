@@ -85,7 +85,6 @@
         }, 500);
 
         function inicializarPainelKanban() {
-            // Pausa tempo real se o operador estiver digitando
             if (document.activeElement && document.activeElement.classList.contains('input-nota')) {
                 return;
             }
@@ -101,7 +100,6 @@
                     colunas_do_funil.forEach(c => c.item = []);
                     let lista = Array.isArray(dadosBrutos) ? dadosBrutos : (dadosBrutos.data || []);
 
-                    // Contadores locais para as colunas
                     const contadores = { Triagem: 0, Agendamento: 0, Faturamento: 0, Concluído: 0 };
 
                     lista.forEach(item => {
@@ -114,11 +112,12 @@
                             const temFoto = cartao.avatar_url && cartao.avatar_url.trim() !== "" && cartao.avatar_url !== "null";
                             const primeiraLetra = cartao.cliente_nome ? cartao.cliente_nome.charAt(0) : '?';
                             const notaAtual = cartao.notas_contato || '';
+                            const msgCompleta = cartao.ultima_mensagem || 'Nenhuma mensagem gravada...';
 
                             const cardHTML = `
                                 <div class="p-3 select-none relative id-card-${cartao.conversation_id} ${ehConversaAtual ? 'border-l-4 border-indigo-600' : ''}">
                                     
-                                    <div class="flex items-center gap-3 mb-2.5">
+                                    <div class="flex items-center gap-3 mb-2">
                                         <div class="w-10 h-10 min-w-[40px] rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold uppercase overflow-hidden shadow-sm">
                                             ${temFoto ? `<img src="${cartao.avatar_url}" class="w-full h-full object-cover">` : primeiraLetra}
                                         </div>
@@ -127,23 +126,22 @@
                                             <p class="text-[11px] font-medium text-slate-400 mt-0.5">${cartao.phone_number || 'Sem WhatsApp'}</p>
                                         </div>
                                     </div>
-                                    
-                                    <div class="space-y-2 pt-2 border-t border-slate-100">
-                                        <div class="bg-slate-50 p-2 rounded text-[11px] text-slate-600 border border-slate-100/50">
-                                            <span class="font-bold text-slate-400 block text-[9px] uppercase tracking-wider mb-0.5">Última Mensagem</span>
-                                            <p class="italic truncate">${cartao.ultima_mensagem || 'Nenhuma mensagem gravada...'}</p>
-                                        </div>
-                                    </div>
 
-                                    <div id="extra-${cartao.conversation_id}" class="hidden mt-2 pt-2 border-t border-slate-100 space-y-2 note-area">
+                                    <div id="extra-${cartao.conversation_id}" class="hidden mt-2 pt-2 border-t border-slate-100 space-y-2.5 note-area">
+                                        
+                                        <div class="bg-slate-50 p-2.5 rounded text-[11px] text-slate-600 border border-slate-100/50">
+                                            <span class="font-bold text-slate-400 block text-[9px] uppercase tracking-wider mb-0.5">Última Mensagem</span>
+                                            <p class="whitespace-pre-wrap break-words italic text-slate-700">${msgCompleta}</p>
+                                        </div>
+
                                         <div class="bg-slate-50/50 border border-dashed border-slate-200 focus-within:border-indigo-300 focus-within:bg-white p-2 rounded flex flex-col">
                                             <span class="font-bold text-slate-400 block text-[9px] uppercase tracking-wider mb-0.5">Nota Kanban 🗒_</span>
-                                            <textarea id="nota-${cartao.conversation_id}" data-convid="${cartao.conversation_id}" class="input-nota w-full bg-transparent text-[11px] text-slate-700 border-none outline-none resize-none placeholder-slate-300 focus:ring-0 p-0" rows="5" placeholder="Digite o histórico ou notas de acompanhamento aqui...">${notaAtual}</textarea>
+                                            <textarea id="nota-${cartao.conversation_id}" data-convid="${cartao.conversation_id}" class="input-nota w-full bg-transparent text-[11px] text-slate-700 border-none outline-none resize-none placeholder-slate-300 focus:ring-0 p-0" rows="5" placeholder="Digite o histórico de acompanhamento aqui...">${notaAtual}</textarea>
                                             <button id="btn-nota-${cartao.conversation_id}" data-convid="${cartao.conversation_id}" data-account="${globalAccountId}" class="btn-salvar-nota hidden mt-1.5 self-end bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-bold py-1 px-2.5 rounded transition-colors shadow-sm">SALVAR NOTA</button>
                                         </div>
                                     </div>
 
-                                    <div class="mt-3 pt-2 border-t border-slate-50 flex items-center justify-between text-[11px]">
+                                    <div class="mt-2.5 pt-2 border-t border-slate-50 flex items-center justify-between text-[11px]">
                                         <span data-convid="${cartao.conversation_id}" class="btn-expandir font-bold text-slate-400 hover:text-slate-600 cursor-pointer">
                                             Expandir Card ↗
                                         </span>
@@ -161,7 +159,6 @@
                         }
                     });
 
-                    // Atualiza dinamicamente os cabeçalhos com o contador na frente ex: Triagem (2)
                     colunas_do_funil.forEach(c => {
                         const qtd = contadores[c.id] || 0;
                         c.title = `${c.id} (${qtd})`;
@@ -190,25 +187,22 @@
                         }
                     });
 
-                    // 🛠️ EVENTOS JS BLINDADOS
+                    // 🛠️ INTERCEPTADORES JAVASCRIPT
 
-                    // 1. Link Ir para o Chat (Método Universal de Link do Chatwoot)
+                    // 1. Redirecionamento de Chat Forçado (Rompendo barreiras do Iframe/Filtros)
                     document.querySelectorAll('.btn-link-chat').forEach(link => {
                         link.addEventListener('click', function(e) {
                             e.preventDefault();
                             e.stopPropagation();
                             const idConversa = this.getAttribute('data-convid');
                             if (idConversa) {
-                                // Força o Chatwoot a mudar a rota interna para focar na conversa alvo
-                                window.parent.postMessage(JSON.stringify({
-                                    event: 'navigation:change',
-                                    url: `/app/accounts/${globalAccountId}/conversations/${idConversa}`
-                                }), '*');
+                                // Força a janela pai principal a atualizar para a rota absoluta do chat selecionado
+                                window.parent.location.href = `https://chat.orbbotia.com/app/accounts/${globalAccountId}/conversations/${idConversa}`;
                             }
                         });
                     });
 
-                    // 2. Botão Expandir / Recolher Card
+                    // 2. Expandir / Recolher Card
                     document.querySelectorAll('.btn-expandir').forEach(btn => {
                         btn.addEventListener('click', function(e) {
                             e.stopPropagation();
