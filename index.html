@@ -98,7 +98,6 @@
                 globalAgentId = payload.current_agent ? payload.current_agent.id : null;
                 globalAgentRole = payload.current_agent ? payload.current_agent.role : 'agent';
 
-                // Removida a exigência da Conversa existir. Basta o Account ID para puxar o banco!
                 if (globalAccountId) {
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('barra-filtros').style.display = 'flex';
@@ -115,7 +114,18 @@
             if (!conectado) window.parent.postMessage('chatwoot-dashboard-app:fetch-info', '*');
         }, 500);
 
+        // FIX 2: Correção do Bug de Tela (Recalcula as zonas de arraste sem gastar requisição no n8n)
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (dadosLocaisOriginais.length > 0) aplicarFiltrosSilencioso();
+            }, 300);
+        });
+
         function carregarDadosDoServidor() {
+            // FIX 3: Pausa a atualização se estiver digitando OU se tiver um card no estado "SALVANDO..."
+            if (document.querySelector('.card-bloqueado')) return;
             if (document.activeElement && (document.activeElement.classList.contains('input-nota') || document.activeElement.classList.contains('input-edit'))) return;
 
             let urlFinal = `${urlDados}?account_id=${globalAccountId}`;
@@ -134,9 +144,6 @@
                 })
                 .catch(erro => {
                     console.error("Falha ao carregar n8n:", erro);
-                    const loadBox = document.getElementById('loading');
-                    loadBox.style.display = 'flex';
-                    loadBox.innerHTML = `<span class="text-red-600 font-bold">Erro ao conectar com n8n: ${erro.message}. Verifique se o fluxo 'kanban-dados' está ativo!</span>`;
                 });
         }
 
@@ -147,7 +154,9 @@
             
             dadosLocaisOriginais.forEach(item => {
                 const c = item.json ? item.json : item;
-                if (Array.isArray(c.etiquetas)) c.etiquetas.forEach(tag => todasEtiquetas.add(tag));
+                if (Array.isArray(c.etiquetas)) c.etiquetas.forEach(tag => {
+                    if (tag && tag.trim() !== "") todasEtiquetas.add(tag.trim());
+                });
             });
 
             seletor.innerHTML = '<option value="todos">Todas</option>';
@@ -175,7 +184,7 @@
             let dadosFiltrados = dadosLocaisOriginais.filter(item => {
                 const c = item.json ? item.json : item;
                 const batePrio = (prio === 'todos') || (c.prioridade === prio);
-                const bateTag = (tag === 'todos') || (Array.isArray(c.etiquetas) && c.etiquetas.includes(tag));
+                const bateTag = (tag === 'todos') || (Array.isArray(c.etiquetas) && c.etiquetas.map(t => t.trim()).includes(tag));
                 return batePrio && bateTag;
             });
             renderizarPainelKanban(dadosFiltrados);
@@ -188,6 +197,14 @@
         }
 
         function renderizarPainelKanban(listaDeCards) {
+            // FIX 1: Capturando a Memória de Scroll Horizontal e Vertical antes de apagar a tela
+            const kanbanContainerDOM = document.querySelector('.kanban-container');
+            const scrollX = kanbanContainerDOM ? kanbanContainerDOM.scrollLeft : 0;
+            const scrollY = {};
+            document.querySelectorAll('.kanban-drag').forEach(col => {
+                scrollY[col.parentElement.dataset.id] = col.scrollTop;
+            });
+
             colunas_do_funil.forEach(c => c.item = []);
             const contadores = { Triagem: 0, Agendamento: 0, Faturamento: 0, Concluído: 0 };
 
@@ -209,7 +226,9 @@
                     let tagsHTML = '';
                     if (Array.isArray(cartao.etiquetas)) {
                         cartao.etiquetas.forEach(t => {
-                            tagsHTML += `<span class="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-100/50">${t}</span>`;
+                            if (t && t.trim() !== "") {
+                                tagsHTML += `<span class="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-100/50">${t.trim()}</span>`;
+                            }
                         });
                     }
 
@@ -316,6 +335,15 @@
                 }
             });
 
+            // FIX 1 pt 2: Aplicando a Memória de Scroll de volta na nova tela desenhada
+            const novoContainer = document.querySelector('.kanban-container');
+            if (novoContainer) novoContainer.scrollLeft = scrollX;
+            document.querySelectorAll('.kanban-drag').forEach(col => {
+                const boardId = col.parentElement.dataset.id;
+                if (scrollY[boardId]) col.scrollTop = scrollY[boardId];
+            });
+
+            // Re-vincular eventos
             document.querySelectorAll('.btn-link-chat').forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault(); e.stopPropagation();
