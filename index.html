@@ -70,8 +70,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jkanban@1.3.1/dist/jkanban.min.js"></script>
     <script>
         const urlDados = 'https://n8n.orbbotia.com/webhook/kanban-dados';
-        const urlMover = 'https://n8n.orbbotia.com/webhook/kanban-mover';
-        const urlSalvarNota = 'https://n8n.orbbotia.com/webhook/kanban-salvar-nota';
+        const urlAcaoUnica = 'https://n8n.orbbotia.com/webhook/kanban-acao'; // Nova Rota Única
 
         const colunas_do_funil = [
             { id: 'Triagem', title: 'Triagem', item: [] },
@@ -196,7 +195,6 @@
                     const mapaPrioCores = { urgent: '🔴 Urgente', high: '🟠 Alta', medium: '🟡 Média', low: '🔵 Baixa' };
                     const textoPrio = mapaPrioCores[cartao.prioridade] || '';
 
-                    // Tags Visuais
                     let tagsHTML = '';
                     if (Array.isArray(cartao.etiquetas)) {
                         cartao.etiquetas.forEach(t => {
@@ -294,15 +292,20 @@
                     const conversationId = el.dataset.eid;
                     const novaEtapa = target.parentElement.dataset.id;
                     
-                    fetch(urlMover, {
+                    // Envia requisição com action 'mover'
+                    fetch(urlAcaoUnica, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ conversation_id: conversationId, etapa_funil: novaEtapa, account_id: globalAccountId })
+                        body: JSON.stringify({ 
+                            action: 'mover',
+                            conversation_id: conversationId, 
+                            etapa_funil: novaEtapa, 
+                            account_id: globalAccountId 
+                        })
                     });
                 }
             });
 
-            // Religar Eventos
             document.querySelectorAll('.btn-link-chat').forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault(); e.stopPropagation();
@@ -353,37 +356,10 @@
             btnElement.innerText = 'SALVANDO...';
             btnElement.disabled = true;
 
-            // Enviando apenas prioridade e notas para o Webhook
-            fetch(urlSalvarNota, {
+            // Envia requisição com action 'salvar'
+            fetch(urlAcaoUnica, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    conversation_id: convId, 
-                    account_id: accountId, 
-                    notas_contato: textoNota,
-                    prioridade: prioridade
-                })
-            }).then(response => {
-                btnElement.innerText = 'SALVO ✓';
-                btnElement.classList.replace('bg-indigo-600', 'bg-emerald-600');
-                btnElement.classList.replace('hover:bg-indigo-700', 'hover:bg-emerald-700');
-                
-                setTimeout(() => {
-                    btnElement.innerText = '💾 SALVAR ALTERAÇÕES';
-                    btnElement.disabled = false;
-                    btnElement.classList.replace('bg-emerald-600', 'bg-indigo-600');
-                    btnElement.classList.replace('hover:bg-emerald-700', 'hover:bg-indigo-700');
-                    if (cardItemElement) cardItemElement.classList.remove('card-bloqueado');
-                    
-                    carregarDadosDoServidor(); 
-                }, 1500);
-            }).catch(() => {
-                btnElement.innerText = 'ERRO!';
-                btnElement.classList.replace('bg-indigo-600', 'bg-rose-600');
-                btnElement.disabled = false;
-                if (cardItemElement) cardItemElement.classList.remove('card-bloqueado');
-            });
-        }
-    </script>
-</body>
-</html>
+                    action: 'salvar',
+                    conversation_id: convId,
