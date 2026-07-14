@@ -99,14 +99,28 @@
                 globalAgentRole = payload.current_agent ? payload.current_agent.role : 'agent';
 
                 if (globalAccountId) {
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('barra-filtros').style.display = 'flex';
-                    document.getElementById('meuKanban').style.display = 'flex';
-                    
-                    carregarDadosDoServidor();
-                    clearInterval(realtimeInterval);
-                    realtimeInterval = setInterval(carregarDadosDoServidor, 7000);
-                }
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('barra-filtros').style.display = 'flex';
+    document.getElementById('meuKanban').style.display = 'flex';
+    
+    carregarDadosDoServidor();
+    
+    // Inicia o intervalo de 12 segundos (mais seguro)
+    clearInterval(realtimeInterval);
+    realtimeInterval = setInterval(carregarDadosDoServidor, 12000);
+
+    // SENSOR DE FOCO: Pausa o timer se o operador mudar de aba ou minimizar a tela
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            console.log("Kanban pausado por inatividade.");
+            clearInterval(realtimeInterval);
+        } else {
+            console.log("Kanban retomado.");
+            carregarDadosDoServidor(); // Dá um refresh na hora que o operador volta
+            realtimeInterval = setInterval(carregarDadosDoServidor, 12000);
+        }
+    });
+}
             }
         });
 
