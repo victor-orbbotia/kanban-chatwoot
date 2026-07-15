@@ -139,8 +139,11 @@
 
                 if (!resColunas.ok || !resDados.ok) throw new Error("Erro HTTP");
 
-                colunasConfiguradas = await resColunas.json() || [];
-                const dadosBrutos = await resDados.json();
+                const resColunasJSON = await resColunas.json();
+// Tenta pegar de dentro de 'colunas', se não achar, usa o próprio JSON (caso seja Array), se não, Array vazio.
+colunasConfiguradas = resColunasJSON.colunas ? resColunasJSON.colunas : (Array.isArray(resColunasJSON) ? resColunasJSON : []);
+
+const dadosBrutos = await resDados.json();
 
                 document.getElementById('loading').style.display = 'none';
                 dadosLocaisOriginais = Array.isArray(dadosBrutos) ? dadosBrutos : (dadosBrutos.data || []);
